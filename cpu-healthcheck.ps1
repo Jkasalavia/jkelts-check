@@ -548,8 +548,23 @@ function Get-BatteryHealth {
 
     $chargeValues = @($batteries | Where-Object { $null -ne $_.EstimatedChargeRemaining } | ForEach-Object { [double]$_.EstimatedChargeRemaining })
     $chargePercent = if ($chargeValues.Count -gt 0) { [math]::Round(($chargeValues | Measure-Object -Average).Average, 0) } else { $null }
-    $designCapacity = ($staticData | Where-Object { $null -ne $_.DesignedCapacity -and [double]$_.DesignedCapacity -gt 0 } | Select-Object -First 1).DesignedCapacity
-    $fullCapacity = ($fullCharged | Where-Object { $null -ne $_.FullChargedCapacity -and [double]$_.FullChargedCapacity -gt 0 } | Select-Object -First 1).FullChargedCapacity
+    $designCapacity = $null
+    foreach ($item in $staticData) {
+        $value = $null
+        if ($item.PSObject.Properties.Name -contains 'DesignedCapacity') { $value = $item.DesignedCapacity }
+        elseif ($item.PSObject.Properties.Name -contains 'DesignCapacity') { $value = $item.DesignCapacity }
+        if ($null -ne $value -and [double]$value -gt 0) {
+            $designCapacity = [double]$value
+            break
+        }
+    }
+    $fullCapacity = $null
+    foreach ($item in $fullCharged) {
+        if ($item.PSObject.Properties.Name -contains 'FullChargedCapacity' -and $null -ne $item.FullChargedCapacity -and [double]$item.FullChargedCapacity -gt 0) {
+            $fullCapacity = [double]$item.FullChargedCapacity
+            break
+        }
+    }
     $healthPercent = if ($designCapacity -and $fullCapacity) {
         [math]::Round(([double]$fullCapacity / [double]$designCapacity) * 100, 0)
     } else {
