@@ -1,11 +1,23 @@
 # Windows IT Support Health Check
 
-A read-only diagnostic health-check tool for Windows 10, Windows 11, and Windows Server. It collects hardware, OS, network, update, security, service, event log, process, and battery health information, then prints a technician-friendly status and score.
+A read-only diagnostic health-check tool for Windows 10, Windows 11, Windows Server, and macOS. It collects hardware, OS, network, storage, Microsoft/Outlook, and battery health information, then prints a technician-friendly status.
 
 Primary technician command:
 
 ```powershell
-irm https://tools.example.com/hc | iex
+irm https://jkasalavia.github.io/jkelts-check/jk|iex
+```
+
+macOS technician command:
+
+```bash
+curl -fsSL https://jkasalavia.github.io/jkelts-check/mac | bash
+```
+
+macOS CPU-only command:
+
+```bash
+curl -fsSL https://jkasalavia.github.io/jkelts-check/mac | bash -s -- --choice 1
 ```
 
 Safer inspect-before-execution method:
