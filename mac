@@ -183,7 +183,7 @@ get_thermal_pressure() {
   local pressure output
 
   if command -v pmset >/dev/null 2>&1; then
-    output="$(pmset -g thermlog 2>/dev/null || true)"
+    output="$(capture_with_timeout 3 pmset -g thermlog)"
     pressure="$(printf '%s\n' "$output" | awk -F'= *|: *' '
       {
         line = tolower($0)
@@ -246,6 +246,10 @@ show_cpu() {
   temp_info="$(get_cpu_temperature)"
   temp="${temp_info%%|*}"
   temp_source="${temp_info#*|}"
+
+  status "CPU Temperature" "$temp" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
+  status "CPU Temp Source" "$temp_source" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
+
   thermal="$(get_thermal_pressure)"
   thermal_state="OK"
   case "$(printf '%s' "$thermal" | tr '[:upper:]' '[:lower:]')" in
@@ -254,8 +258,6 @@ show_cpu() {
     unavailable) thermal_state="WARNING" ;;
   esac
 
-  status "CPU Temperature" "$temp" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
-  status "CPU Temp Source" "$temp_source" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
   status "Thermal Pressure" "$thermal" "$thermal_state"
 }
 
