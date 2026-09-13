@@ -75,15 +75,30 @@ cmd_value() {
   "$@" 2>/dev/null | awk 'NF { print; exit }'
 }
 
-run_with_timeout() {
+capture_with_timeout() {
   local seconds="$1"
   shift
+  local tmp pid waited output
+  tmp="${TMPDIR:-/tmp}/jkelts-command.$$.$RANDOM"
 
-  if command -v perl >/dev/null 2>&1; then
-    perl -e 'alarm shift; exec @ARGV' "$seconds" "$@" 2>/dev/null || true
-  else
-    "$@" 2>/dev/null || true
+  "$@" > "$tmp" 2>/dev/null &
+  pid=$!
+  waited=0
+  while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$seconds" ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    rm -f "$tmp"
+    return 124
   fi
+
+  wait "$pid" 2>/dev/null || true
+  output="$(cat "$tmp" 2>/dev/null || true)"
+  rm -f "$tmp"
+  printf '%s' "$output"
 }
 
 bytes_to_gb() {
@@ -127,7 +142,11 @@ get_cpu_temperature() {
   fi
 
   local output temp
-  output="$(run_with_timeout 4 powermetrics --samplers smc -n 1 -i 1000)"
+  output="$(capture_with_timeout 5 powermetrics --samplers smc -n 1 -i 1000)"
+  if [ "$?" -eq 124 ]; then
+    printf 'Unavailable|powermetrics timed out without CPU temperature data'
+    return
+  fi
   if [ -z "$output" ]; then
     printf 'Unavailable|No CPU temperature data returned by macOS'
     return
@@ -159,7 +178,7 @@ get_thermal_pressure() {
   local pressure output
 
   if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
-    output="$(run_with_timeout 4 powermetrics --samplers thermal -n 1 -i 1000)"
+    output="$(capture_with_timeout 5 powermetrics --samplers thermal -n 1 -i 1000)"
     pressure="$(printf '%s\n' "$output" | awk -F': *' '
       {
         line = tolower($0)
@@ -218,7 +237,6 @@ show_cpu() {
 
   status "CPU Model" "$cpu" "OK"
   status "CPU Cores" "$cores" "OK"
-  status "CPU Temperature" "Checking..." "WARNING"
 
   temp_info="$(get_cpu_temperature)"
   temp="${temp_info%%|*}"
@@ -231,7 +249,7 @@ show_cpu() {
     unavailable) thermal_state="WARNING" ;;
   esac
 
-  status "CPU Temperature Result" "$temp" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
+  status "CPU Temperature" "$temp" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
   status "CPU Temp Source" "$temp_source" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
   status "Thermal Pressure" "$thermal" "$thermal_state"
 }
