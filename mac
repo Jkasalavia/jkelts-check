@@ -75,6 +75,17 @@ cmd_value() {
   "$@" 2>/dev/null | awk 'NF { print; exit }'
 }
 
+run_with_timeout() {
+  local seconds="$1"
+  shift
+
+  if command -v perl >/dev/null 2>&1; then
+    perl -e 'alarm shift; exec @ARGV' "$seconds" "$@" 2>/dev/null || true
+  else
+    "$@" 2>/dev/null || true
+  fi
+}
+
 bytes_to_gb() {
   awk -v b="${1:-0}" 'BEGIN { printf "%.2f GB", b / 1024 / 1024 / 1024 }'
 }
@@ -116,7 +127,7 @@ get_cpu_temperature() {
   fi
 
   local output temp
-  output="$(powermetrics --samplers smc -n 1 -i 1000 2>/dev/null || true)"
+  output="$(run_with_timeout 6 powermetrics --samplers smc -n 1 -i 1000)"
   temp="$(printf '%s\n' "$output" | awk '
     {
       line = tolower($0)
@@ -144,7 +155,7 @@ get_thermal_pressure() {
   local pressure output
 
   if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
-    output="$(powermetrics --samplers thermal -n 1 -i 1000 2>/dev/null || true)"
+    output="$(run_with_timeout 6 powermetrics --samplers thermal -n 1 -i 1000)"
     pressure="$(printf '%s\n' "$output" | awk -F': *' '
       {
         line = tolower($0)
@@ -201,6 +212,11 @@ show_cpu() {
   cpu="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)"
   cores="$(sysctl -n hw.ncpu 2>/dev/null || echo Unknown)"
   load="$(sysctl -n vm.loadavg 2>/dev/null | tr -d '{}')"
+
+  status "CPU Model" "$cpu" "OK"
+  status "CPU Cores" "$cores" "OK"
+  status "Load Average" "$load" "OK"
+
   temp_info="$(get_cpu_temperature)"
   temp="${temp_info%%|*}"
   temp_source="${temp_info#*|}"
@@ -212,9 +228,6 @@ show_cpu() {
     unavailable) thermal_state="WARNING" ;;
   esac
 
-  status "CPU Model" "$cpu" "OK"
-  status "CPU Cores" "$cores" "OK"
-  status "Load Average" "$load" "OK"
   if [ "$temp" = "Unavailable" ]; then
     status "CPU Temperature" "Unavailable" "WARNING"
   else
