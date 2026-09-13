@@ -8,7 +8,7 @@ Users can then run:
 
 $ErrorActionPreference = 'Stop'
 
-$owner = 'YOUR-GITHUB-USERNAME'
+$owner = 'Jkasalavia'
 $repo = 'jkelts-check'
 $packageUrl = "https://github.com/$owner/$repo/releases/latest/download/jkelts-check.zip"
 $base = Join-Path $env:TEMP 'jkelts-check'
