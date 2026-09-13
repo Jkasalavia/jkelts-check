@@ -8,10 +8,22 @@ Primary technician command:
 irm https://jkasalavia.github.io/jkelts-check/jk|iex
 ```
 
+Windows smart alias:
+
+```powershell
+irm https://jkasalavia.github.io/jkelts-check/run|iex
+```
+
 macOS technician command:
 
 ```bash
 curl -fsSL https://jkasalavia.github.io/jkelts-check/mac | bash
+```
+
+macOS smart alias:
+
+```bash
+curl -fsSL https://jkasalavia.github.io/jkelts-check/run.sh | bash
 ```
 
 macOS CPU-only command:
