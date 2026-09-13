@@ -55,6 +55,22 @@ status() {
   color reset
 }
 
+read_terminal() {
+  local prompt="$1"
+  local __resultvar="$2"
+  local value=""
+
+  if [ -r /dev/tty ]; then
+    printf '%s' "$prompt" > /dev/tty
+    IFS= read -r value < /dev/tty || value=""
+  else
+    printf '%s' "$prompt"
+    IFS= read -r value || value=""
+  fi
+
+  eval "$__resultvar=\$value"
+}
+
 cmd_value() {
   "$@" 2>/dev/null | awk 'NF { print; exit }'
 }
@@ -297,11 +313,9 @@ fi
 
 while true; do
   menu
-  printf 'Enter choice: '
-  read -r choice
+  read_terminal 'Enter choice: ' choice
   run_choice "$choice"
   [ "$choice" = "0" ] && break
   echo
-  printf 'Press Enter to return to the menu'
-  read -r _
+  read_terminal 'Press Enter to return to the menu' _
 done
