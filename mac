@@ -131,6 +131,11 @@ get_mac_device_type() {
 }
 
 get_cpu_temperature() {
+  if [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
+    printf 'Unavailable|Apple Silicon/macOS does not expose numeric CPU temperature to native CLI'
+    return
+  fi
+
   if ! command -v powermetrics >/dev/null 2>&1; then
     printf 'Unavailable|powermetrics not found'
     return
@@ -177,26 +182,26 @@ get_cpu_temperature() {
 get_thermal_pressure() {
   local pressure output
 
-  if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
-    output="$(capture_with_timeout 5 powermetrics --samplers thermal -n 1 -i 1000)"
-    pressure="$(printf '%s\n' "$output" | awk -F': *' '
-      {
-        line = tolower($0)
-        if (line ~ /thermal pressure|thermal level|pressure level/) {
-          print $2
-          exit
-        }
-      }
-    ')"
-  fi
-
-  if [ -z "$pressure" ] && command -v pmset >/dev/null 2>&1; then
+  if command -v pmset >/dev/null 2>&1; then
     output="$(pmset -g thermlog 2>/dev/null || true)"
     pressure="$(printf '%s\n' "$output" | awk -F'= *|: *' '
       {
         line = tolower($0)
         if (line ~ /thermal pressure|thermal level|cpu_speed_limit|cpu_scheduler_limit/) {
           print $NF
+          exit
+        }
+      }
+    ')"
+  fi
+
+  if [ -z "$pressure" ] && command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ] && [ "$(uname -m 2>/dev/null)" != "arm64" ]; then
+    output="$(capture_with_timeout 5 powermetrics --samplers thermal -n 1 -i 1000)"
+    pressure="$(printf '%s\n' "$output" | awk -F': *' '
+      {
+        line = tolower($0)
+        if (line ~ /thermal pressure|thermal level|pressure level/) {
+          print $2
           exit
         }
       }
