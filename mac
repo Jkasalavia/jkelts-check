@@ -90,23 +90,40 @@ percent_used_status() {
   fi
 }
 
+get_mac_device_type() {
+  local model_name="$1"
+  local model_id="$2"
+  local combined
+  combined="$(printf '%s %s' "$model_name" "$model_id" | tr '[:upper:]' '[:lower:]')"
+
+  case "$combined" in
+    *macbook*) printf 'MAC LAPTOP' ;;
+    *imac*) printf 'MAC ALL-IN-ONE' ;;
+    *macmini*|*mac\ mini*|*macstudio*|*mac\ studio*|*macpro*|*mac\ pro*) printf 'MAC DESKTOP' ;;
+    *) printf 'MAC' ;;
+  esac
+}
+
 show_system() {
   title "$TITLE"
-  local computer user os model serial
+  local computer user os model model_id serial device_type
   computer="$(scutil --get ComputerName 2>/dev/null || hostname)"
   user="$(whoami)"
   os="$(sw_vers -productName 2>/dev/null) $(sw_vers -productVersion 2>/dev/null)"
   model="$(cmd_value system_profiler SPHardwareDataType | sed 's/^[[:space:]]*Model Name: //')"
-  [ -z "$model" ] && model="$(sysctl -n hw.model 2>/dev/null || echo Unknown)"
+  model_id="$(sysctl -n hw.model 2>/dev/null || true)"
+  [ -z "$model" ] && model="${model_id:-Unknown}"
   serial="$(system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Serial Number/ {print $2; exit}')"
   [ -z "$serial" ] && serial="Unavailable"
+  device_type="$(get_mac_device_type "$model" "$model_id")"
 
   printf '%-26s : %s\n' "Computer" "$computer"
   printf '%-26s : %s\n' "User" "$user"
   printf '%-26s : %s\n' "Administrator" "$(id -Gn | grep -qw admin && echo YES || echo NO)"
   printf '%-26s : %s\n' "macOS" "$os"
-  printf '%-26s : %s\n' "Device Type" "MAC"
+  printf '%-26s : %s\n' "Device Type" "$device_type"
   printf '%-26s : %s\n' "Model" "$model"
+  [ -n "$model_id" ] && printf '%-26s : %s\n' "Model Identifier" "$model_id"
   printf '%-26s : %s\n' "Serial Number" "$serial"
 }
 
