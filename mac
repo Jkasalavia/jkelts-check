@@ -208,14 +208,12 @@ show_system() {
 
 show_cpu() {
   title "CPU"
-  local cpu cores load temp_info temp temp_source thermal thermal_state
+  local cpu cores temp_info temp temp_source thermal thermal_state
   cpu="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)"
   cores="$(sysctl -n hw.ncpu 2>/dev/null || echo Unknown)"
-  load="$(sysctl -n vm.loadavg 2>/dev/null | tr -d '{}')"
 
   status "CPU Model" "$cpu" "OK"
   status "CPU Cores" "$cores" "OK"
-  status "Load Average" "$load" "OK"
 
   temp_info="$(get_cpu_temperature)"
   temp="${temp_info%%|*}"
