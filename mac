@@ -126,6 +126,9 @@ get_mac_device_type() {
     *macbook*) printf 'MAC LAPTOP' ;;
     *imac*) printf 'MAC ALL-IN-ONE' ;;
     *macmini*|*mac\ mini*|*macstudio*|*mac\ studio*|*macpro*|*mac\ pro*) printf 'MAC DESKTOP' ;;
+    *"model identifier: macbook"*|macbook*) printf 'MAC LAPTOP' ;;
+    *"model identifier: imac"*|imac*) printf 'MAC ALL-IN-ONE' ;;
+    *"model identifier: macmini"*|*macmini*|*"model identifier: macstudio"*|*macstudio*|*"model identifier: macpro"*|*macpro*) printf 'MAC DESKTOP' ;;
     *) printf 'MAC' ;;
   esac
 }
@@ -213,14 +216,17 @@ get_thermal_pressure() {
 
 show_system() {
   title "$TITLE"
-  local computer user os model model_id serial device_type
+  local computer user os hardware model model_id serial device_type
   computer="$(scutil --get ComputerName 2>/dev/null || hostname)"
   user="$(whoami)"
   os="$(sw_vers -productName 2>/dev/null) $(sw_vers -productVersion 2>/dev/null)"
-  model="$(cmd_value system_profiler SPHardwareDataType | sed 's/^[[:space:]]*Model Name: //')"
+  hardware="$(system_profiler SPHardwareDataType 2>/dev/null || true)"
+  model="$(printf '%s\n' "$hardware" | awk -F': ' '/Model Name/ {print $2; exit}')"
+  [ -z "$model" ] && model="$(printf '%s\n' "$hardware" | awk -F': ' '/Model Identifier/ {print $2; exit}')"
   model_id="$(sysctl -n hw.model 2>/dev/null || true)"
+  [ -z "$model_id" ] && model_id="$(printf '%s\n' "$hardware" | awk -F': ' '/Model Identifier/ {print $2; exit}')"
   [ -z "$model" ] && model="${model_id:-Unknown}"
-  serial="$(system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Serial Number/ {print $2; exit}')"
+  serial="$(printf '%s\n' "$hardware" | awk -F': ' '/Serial Number/ {print $2; exit}')"
   [ -z "$serial" ] && serial="Unavailable"
   device_type="$(get_mac_device_type "$model" "$model_id")"
 
