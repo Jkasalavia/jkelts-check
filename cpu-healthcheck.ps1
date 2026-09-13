@@ -565,6 +565,28 @@ function Get-BatteryHealth {
             break
         }
     }
+    if (-not ($designCapacity -and $fullCapacity)) {
+        $reportPath = Join-Path $env:TEMP ("jkelts-battery-report-{0}.html" -f ([guid]::NewGuid().ToString('N')))
+        $reportText = Invoke-Safe {
+            $null = & powercfg /batteryreport /output $reportPath 2>$null
+            if (Test-Path -LiteralPath $reportPath) {
+                Get-Content -LiteralPath $reportPath -Raw
+            }
+        } $null
+        Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
+
+        if ($reportText) {
+            $numberPattern = '([0-9][0-9,\.]*)\s*mWh'
+            $designMatch = [regex]::Match($reportText, '(?is)DESIGN\s+CAPACITY.*?' + $numberPattern)
+            $fullMatch = [regex]::Match($reportText, '(?is)FULL\s+CHARGE\s+CAPACITY.*?' + $numberPattern)
+            if ($designMatch.Success -and -not $designCapacity) {
+                $designCapacity = [double](($designMatch.Groups[1].Value -replace ',',''))
+            }
+            if ($fullMatch.Success -and -not $fullCapacity) {
+                $fullCapacity = [double](($fullMatch.Groups[1].Value -replace ',',''))
+            }
+        }
+    }
     $healthPercent = if ($designCapacity -and $fullCapacity) {
         [math]::Round(([double]$fullCapacity / [double]$designCapacity) * 100, 0)
     } else {
@@ -585,7 +607,7 @@ function Get-BatteryHealth {
         ChargePercent = $chargePercent
         HealthPercent = $healthPercent
         Status = $status
-        Details = if ($healthPercent) { "Full charge capacity is $healthPercent% of design capacity." } else { 'Battery health capacity is unavailable.' }
+        Details = if ($healthPercent) { "Full charge capacity is $healthPercent% of design capacity. Design=$designCapacity mWh; Full=$fullCapacity mWh." } else { 'Battery health capacity is unavailable from WMI and powercfg battery report.' }
     }
 }
 
