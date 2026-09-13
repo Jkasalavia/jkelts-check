@@ -104,6 +104,74 @@ get_mac_device_type() {
   esac
 }
 
+get_cpu_temperature() {
+  if ! command -v powermetrics >/dev/null 2>&1; then
+    printf 'Unavailable|powermetrics not found'
+    return
+  fi
+
+  if [ "$(id -u)" -ne 0 ]; then
+    printf 'Unavailable|Run with sudo to allow powermetrics sensor access'
+    return
+  fi
+
+  local output temp
+  output="$(powermetrics --samplers smc -n 1 -i 1000 2>/dev/null || true)"
+  temp="$(printf '%s\n' "$output" | awk '
+    {
+      line = tolower($0)
+      if (line ~ /temperature/ && line ~ /(cpu|die|package|cluster|core|p-core|e-core)/) {
+        if (match($0, /[0-9]+(\.[0-9]+)?[[:space:]]*C/)) {
+          print substr($0, RSTART, RLENGTH)
+          exit
+        }
+        if (match($0, /[0-9]+(\.[0-9]+)?/)) {
+          print substr($0, RSTART, RLENGTH) " C"
+          exit
+        }
+      }
+    }
+  ')"
+
+  if [ -n "$temp" ]; then
+    printf '%s|powermetrics smc' "$temp"
+  else
+    printf 'Unavailable|Apple Silicon did not expose numeric CPU temperature through powermetrics'
+  fi
+}
+
+get_thermal_pressure() {
+  local pressure output
+
+  if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
+    output="$(powermetrics --samplers thermal -n 1 -i 1000 2>/dev/null || true)"
+    pressure="$(printf '%s\n' "$output" | awk -F': *' '
+      {
+        line = tolower($0)
+        if (line ~ /thermal pressure|thermal level|pressure level/) {
+          print $2
+          exit
+        }
+      }
+    ')"
+  fi
+
+  if [ -z "$pressure" ] && command -v pmset >/dev/null 2>&1; then
+    output="$(pmset -g thermlog 2>/dev/null || true)"
+    pressure="$(printf '%s\n' "$output" | awk -F'= *|: *' '
+      {
+        line = tolower($0)
+        if (line ~ /thermal pressure|thermal level|cpu_speed_limit|cpu_scheduler_limit/) {
+          print $NF
+          exit
+        }
+      }
+    ')"
+  fi
+
+  [ -n "$pressure" ] && printf '%s' "$pressure" || printf 'Unavailable'
+}
+
 show_system() {
   title "$TITLE"
   local computer user os model model_id serial device_type
@@ -129,25 +197,31 @@ show_system() {
 
 show_cpu() {
   title "CPU"
-  local cpu cores load temp
+  local cpu cores load temp_info temp temp_source thermal thermal_state
   cpu="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)"
   cores="$(sysctl -n hw.ncpu 2>/dev/null || echo Unknown)"
   load="$(sysctl -n vm.loadavg 2>/dev/null | tr -d '{}')"
-  temp="Unavailable"
-
-  if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
-    temp="$(powermetrics --samplers smc -n 1 -i 1000 2>/dev/null | awk -F': ' '/CPU die temperature/ {print $2; exit}')"
-    [ -z "$temp" ] && temp="Unavailable"
-  fi
+  temp_info="$(get_cpu_temperature)"
+  temp="${temp_info%%|*}"
+  temp_source="${temp_info#*|}"
+  thermal="$(get_thermal_pressure)"
+  thermal_state="OK"
+  case "$(printf '%s' "$thermal" | tr '[:upper:]' '[:lower:]')" in
+    *warn*|*fair*|*serious*) thermal_state="WARNING" ;;
+    *critical*|*trap*|*heavy*) thermal_state="CRITICAL" ;;
+    unavailable) thermal_state="WARNING" ;;
+  esac
 
   status "CPU Model" "$cpu" "OK"
   status "CPU Cores" "$cores" "OK"
   status "Load Average" "$load" "OK"
   if [ "$temp" = "Unavailable" ]; then
-    status "CPU Temperature" "Unavailable; run with sudo if supported" "WARNING"
+    status "CPU Temperature" "Unavailable" "WARNING"
   else
     status "CPU Temperature" "$temp" "OK"
   fi
+  status "CPU Temp Source" "$temp_source" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
+  status "Thermal Pressure" "$thermal" "$thermal_state"
 }
 
 show_memory() {
