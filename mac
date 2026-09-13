@@ -127,7 +127,11 @@ get_cpu_temperature() {
   fi
 
   local output temp
-  output="$(run_with_timeout 6 powermetrics --samplers smc -n 1 -i 1000)"
+  output="$(run_with_timeout 4 powermetrics --samplers smc -n 1 -i 1000)"
+  if [ -z "$output" ]; then
+    printf 'Unavailable|No CPU temperature data returned by macOS'
+    return
+  fi
   temp="$(printf '%s\n' "$output" | awk '
     {
       line = tolower($0)
@@ -147,7 +151,7 @@ get_cpu_temperature() {
   if [ -n "$temp" ]; then
     printf '%s|powermetrics smc' "$temp"
   else
-    printf 'Unavailable|Apple Silicon did not expose numeric CPU temperature through powermetrics'
+    printf 'Unavailable|Apple Silicon/macOS did not expose numeric CPU temperature'
   fi
 }
 
@@ -155,7 +159,7 @@ get_thermal_pressure() {
   local pressure output
 
   if command -v powermetrics >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
-    output="$(run_with_timeout 6 powermetrics --samplers thermal -n 1 -i 1000)"
+    output="$(run_with_timeout 4 powermetrics --samplers thermal -n 1 -i 1000)"
     pressure="$(printf '%s\n' "$output" | awk -F': *' '
       {
         line = tolower($0)
@@ -214,6 +218,7 @@ show_cpu() {
 
   status "CPU Model" "$cpu" "OK"
   status "CPU Cores" "$cores" "OK"
+  status "CPU Temperature" "Checking..." "WARNING"
 
   temp_info="$(get_cpu_temperature)"
   temp="${temp_info%%|*}"
@@ -226,11 +231,7 @@ show_cpu() {
     unavailable) thermal_state="WARNING" ;;
   esac
 
-  if [ "$temp" = "Unavailable" ]; then
-    status "CPU Temperature" "Unavailable" "WARNING"
-  else
-    status "CPU Temperature" "$temp" "OK"
-  fi
+  status "CPU Temperature Result" "$temp" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
   status "CPU Temp Source" "$temp_source" "$([ "$temp" = "Unavailable" ] && echo WARNING || echo OK)"
   status "Thermal Pressure" "$thermal" "$thermal_state"
 }
