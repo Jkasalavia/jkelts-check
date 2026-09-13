@@ -1,0 +1,5 @@
+out/
+release/
+hwinfo/
+*.zip
+*.log

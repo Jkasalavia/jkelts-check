@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Windows IT Health Check Sample</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;background:#f5f7fa;color:#172033;margin:0}
+header{background:#0b5cab;color:white;padding:28px 36px}
+main{max-width:960px;margin:0 auto;padding:24px}
+section{background:white;border:1px solid #d8dee8;border-radius:8px;margin:16px 0;padding:18px}
+.score{font-size:38px;font-weight:700}.status{display:inline-block;padding:6px 10px;border-radius:6px;font-weight:700}
+.POOR{background:#fff2c6;color:#7a4b00}.WARNING{background:#fff2c6;color:#7a4b00}.CRITICAL{background:#ffe1df;color:#9f1d14}.OK{background:#dff5e7;color:#116329}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #e8edf3;text-align:left}
+</style>
+</head>
+<body>
+<header><h1>Windows IT Health Check</h1><div>OFFICE-PC-05</div></header>
+<main>
+<section><div class="score">74 / 100</div><span class="status POOR">POOR</span></section>
+<section><h2>Recommendations</h2><table>
+<tr><th>Status</th><th>Issue</th><th>Advice</th></tr>
+<tr><td><span class="status CRITICAL">CRITICAL</span></td><td>C: drive is 94% full.</td><td>Free additional storage space.</td></tr>
+<tr><td><span class="status WARNING">WARNING</span></td><td>RAM utilization is 81%.</td><td>Review the highest memory-consuming processes.</td></tr>
+</table></section>
+</main>
+</body>
+</html>

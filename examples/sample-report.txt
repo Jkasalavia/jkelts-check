@@ -1,0 +1,36 @@
+============================================================
+             WINDOWS IT HEALTH CHECK
+============================================================
+
+Computer        : OFFICE-PC-05
+User            : jsmith
+Administrator   : YES
+Manufacturer    : Dell Inc.
+Model           : OptiPlex 7090
+Windows         : Microsoft Windows 11 Pro
+Uptime          : 4 days 6 hours
+
+CPU Usage       : 24% [OK]
+RAM Usage       : 81% [WARNING]
+C: Drive Usage  : 94% [CRITICAL] 28 GB free of 476 GB
+Disk Health     : Healthy [OK]
+
+Gateway         : REACHABLE [OK]
+Internet        : ONLINE [OK]
+DNS             : WORKING [OK]
+HTTPS/443       : WORKING [OK]
+Failed Services : 2 [WARNING]
+System Errors   : 1 [WARNING]
+
+------------------------------------------------------------
+HEALTH SCORE     : 74 / 100
+STATUS           : POOR
+------------------------------------------------------------
+
+RECOMMENDATIONS
+[CRITICAL] C: drive is 94% full.
+      Free additional storage space.
+[WARNING] RAM utilization is 81%.
+      Review the highest memory-consuming processes.
+[WARNING] 2 automatic services are stopped.
+      Review the service list below before taking action.
